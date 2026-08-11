@@ -1,0 +1,98 @@
+{
+  "_note": "Synthetic test emails, one per category in config/email_playbook.md. ALL companies, people, job numbers and addresses are invented — no real correspondence, no real firms. Written 2026-07-21 to test the classifier without touching a real inbox. When the boss confirms his actual categories, replace these with realistic (still anonymised) examples of the mail he really gets.",
+  "emails": [
+    {
+      "id": "rfq-01",
+      "expected_category": "rfq",
+      "from": "Tunde Ajayi <t.ajayi@meridianfieldsng.example>",
+      "subject": "Request for Quotation - Wellhead Maintenance, Otumara Field",
+      "body": "Dear Sir,\n\nWe are currently sourcing vendors for routine wellhead maintenance across four (4) locations at our Otumara flow station.\n\nKindly provide your quotation covering:\n- Valve servicing and pressure testing\n- Replacement of worn gaskets and seals\n- Post-maintenance certification\n\nWe would appreciate receiving your quotation on or before Friday next week. Please indicate your mobilisation timeline separately.\n\nRegards,\nTunde Ajayi\nProcurement Lead, Meridian Fields Nigeria Ltd"
+    },
+    {
+      "id": "status-01",
+      "expected_category": "status",
+      "from": "Grace Okonkwo <grace.okonkwo@delcorenergy.example>",
+      "subject": "Re: Job No. PGS/2026/0412 - any update?",
+      "body": "Good morning,\n\nPlease can I get an update on the intervention job at Well 7? Our operations team has been asking and I have nothing to tell them.\n\nWe were told two weeks. It is now going into the third week.\n\nKindly advise on current status and revised completion date.\n\nThank you,\nGrace Okonkwo\nDelcor Energy"
+    },
+    {
+      "id": "compliance-01",
+      "expected_category": "compliance",
+      "from": "vendor.registration@northgatepetroleum.example",
+      "subject": "Vendor Prequalification - Outstanding Documents",
+      "body": "Dear Vendor,\n\nFurther to your application for registration on our approved vendor list, the following documents remain outstanding:\n\n1. Valid NCDMB Certificate\n2. HSE Policy Statement (signed, current year)\n3. Tax Clearance Certificate (last 3 years)\n4. CAC Certificate of Incorporation and Form CAC 1.1\n5. Evidence of Professional Indemnity Insurance\n\nKindly forward these within fourteen (14) days, failing which your application will be treated as withdrawn.\n\nVendor Registration Unit\nNorthgate Petroleum"
+    },
+    {
+      "id": "payment-01",
+      "expected_category": "payment",
+      "from": "Accounts <accounts@stellarfabricators.example>",
+      "subject": "Outstanding Invoice INV-2026-0338 - 47 days",
+      "body": "Dear Sir/Madam,\n\nWe write regarding invoice INV-2026-0338 issued on 4th June 2026 in respect of fabrication materials supplied to your Trans-Amadi yard.\n\nThe invoice is now 47 days outstanding against agreed 30-day terms.\n\nKindly confirm the payment status and expected remittance date. Our PO reference is SF/PO/2026/1187.\n\nWe value our working relationship and would appreciate your prompt response.\n\nAccounts Receivable\nStellar Fabricators Ltd"
+    },
+    {
+      "id": "scheduling-01",
+      "expected_category": "scheduling",
+      "from": "Ibrahim Sule <isule@harcourtmarine.example>",
+      "subject": "Site visit next week",
+      "body": "Hello,\n\nI would like to bring our technical team to your fabrication yard sometime next week to see the facility before we finalise the contract.\n\nAre you available Tuesday or Wednesday? Morning would suit us better.\n\nPlease let me know what works.\n\nBest regards,\nIbrahim Sule\nHarcourt Marine Services"
+    },
+    {
+      "id": "jobseeker-01",
+      "expected_category": "jobseeker",
+      "from": "chinedu.eze24@example.com",
+      "subject": "Application for Employment - Mechanical Engineer",
+      "body": "Dear Hiring Manager,\n\nI am a graduate of Mechanical Engineering from the University of Port Harcourt with two years experience in maintenance operations.\n\nI am writing to express my interest in any available opening within your organisation. I have attached my CV and credentials for your kind consideration.\n\nI am available for an interview at your convenience and can resume immediately.\n\nThank you for your time.\n\nYours faithfully,\nChinedu Eze"
+    },
+    {
+      "id": "internal-01",
+      "expected_category": "internal",
+      "from": "Blessing Amadi <b.amadi@pegisglobal.example>",
+      "subject": "Leave application - August",
+      "body": "Good afternoon sir,\n\nI wish to apply for my annual leave from 10th to 24th August 2026.\n\nI have discussed handover with Emeka and he has agreed to cover the yard inspections during my absence.\n\nKindly approve.\n\nThank you sir,\nBlessing Amadi\nQA/QC Department"
+    },
+    {
+      "id": "other-01",
+      "expected_category": "other",
+      "from": "Conference Secretariat <info@westafricaenergysummit.example>",
+      "subject": "Invitation: West Africa Energy Summit 2026 - Speaker Nomination",
+      "body": "Dear Industry Leader,\n\nThe organising committee is pleased to invite nominations for speakers at the West Africa Energy Summit holding in Lagos this November.\n\nThemes this year include local content development, decarbonisation pathways, and indigenous capacity in upstream services.\n\nShould you wish to nominate a representative from your organisation, kindly respond indicating the proposed speaker and preferred theme.\n\nDelegate registration details will follow in a separate circular.\n\nWarm regards,\nConference Secretariat"
+    },
+
+    {
+      "id": "hard-mixed-01",
+      "expected_category": "rfq",
+      "expected_should_draft": true,
+      "_why_hard": "Two asks in one email. The RFQ is the main ask; the site visit is an afterthought carrying `scheduling` signals ('available', 'visit'). Correct behaviour is rfq AND answering both in the draft.",
+      "from": "Nkechi Obi <n.obi@arclightenergy.example>",
+      "subject": "Fabrication scope + possible visit",
+      "body": "Good day,\n\nWe are putting together costs for a skid fabrication package at our Bonny facility and would like your pricing. Scope is roughly 12 tonnes structural steel, associated piping and coating, drawings attached.\n\nAlso, are you available for our team to stop by your yard sometime the week after next? Nothing formal, we just want to see the setup.\n\nRegards,\nNkechi Obi\nArclight Energy"
+    },
+    {
+      "id": "hard-internal-domain-01",
+      "expected_category": "internal",
+      "expected_should_draft": false,
+      "_why_hard": "Sent from the company's own domain but the CONTENT is a customer RFQ. Tests the rule that the sender's domain wins over content. Drafting here would mean replying to a colleague as though he were a customer.",
+      "from": "Emeka Nwachukwu <e.nwachukwu@pegisglobal.example>",
+      "subject": "FW: Request for Quotation - Meridian Fields",
+      "body": "Sir,\n\nSee the RFQ below from Meridian Fields, it came to my address by mistake.\n\nDo you want me to prepare the pricing sheet or will commercial handle it? Also they are asking for mobilisation timeline which I do not have.\n\nPlease advise.\n\nEmeka"
+    },
+    {
+      "id": "hard-terse-01",
+      "expected_category": "compliance",
+      "expected_should_draft": true,
+      "_why_hard": "Six words and a forward chain. No polite framing, no full sentences — the register most real Nigerian business mail actually arrives in. The only signal is 'HSE plan' buried in the quoted thread.",
+      "from": "Bayo <bayo.adeyemi@kestrelfieldservices.example>",
+      "subject": "Re: Re: FW: vendor docs",
+      "body": "Pls find attached. Kindly revert.\n\n-----Original Message-----\n> still waiting on the HSE plan and the tax clearance for 2025. Once those two\n> are in we can close out the registration.\n>\n> Regards\n> B"
+    },
+    {
+      "id": "hard-ambiguous-01",
+      "expected_category": "other",
+      "expected_should_draft": false,
+      "_why_hard": "Genuinely unclear even to a human — could be a complaint, a claim, or a prelude to a dispute. The correct answer is to admit that: `other` with no draft. Tests whether the model will guess rather than defer.",
+      "from": "Legal Department <legal@delcorenergy.example>",
+      "subject": "Job No. PGS/2026/0412",
+      "body": "Dear Sir,\n\nWe refer to the above and to correspondence between the parties.\n\nKindly treat this as notice that we are reviewing the position and will revert in due course.\n\nYours faithfully,\nfor: Delcor Energy Legal"
+    }
+  ]
+}

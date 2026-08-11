@@ -1,0 +1,14 @@
+# Secrets — never commit
+.env
+credentials.json
+token.json
+client_secret_*.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Generated data
+tmp/
+output/
