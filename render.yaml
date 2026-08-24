@@ -1,0 +1,63 @@
+# Render blueprint for the enquiry autoresponder.
+#
+# Create the service from this file: Render dashboard, New, Blueprint, pick the
+# agentic-workflows-demo repo. Render reads this and provisions the service, then
+# asks for the values marked sync: false below.
+#
+# ⚠️ NO SECRET IS IN THIS FILE AND NONE MAY EVER BE. Everything sensitive is
+# `sync: false`, which means Render prompts for it once and stores it encrypted.
+# This repo is PUBLIC. An SMTP app password committed here is a password
+# published to the internet, and rotating it means every client's mail stops
+# until it is replaced.
+
+services:
+  - type: web
+    name: enquiry-autoresponder
+    runtime: python
+    plan: free
+    region: frankfurt          # closest of Render's free regions to Nigeria
+    buildCommand: pip install -r requirements.txt
+
+    # ⚠️ ONE WORKER, DELIBERATELY. The rate limiter holds its timestamps in
+    # process memory, so every extra worker gets its own private allowance and
+    # the real ceiling silently multiplies by the worker count. Two workers means
+    # double the mail a stranger can send through the Gmail account.
+    #
+    # ⚠️ `--bind 0.0.0.0:$PORT` is not decoration. Binding to 127.0.0.1 makes the
+    # process reachable only from inside its own container, the health check
+    # never connects, and Render marks the deploy failed with no application
+    # error to explain it.
+    startCommand: gunicorn enquiry_server:app --bind 0.0.0.0:$PORT --workers 1 --timeout 60
+
+    # Hit after every deploy. It answers with the config it can see, which is how
+    # you catch a missing variable before a customer does.
+    healthCheckPath: /health
+
+    envVars:
+      # Prompted at create time. Never stored in git.
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD          # Gmail App Password, 16 chars, NO spaces
+        sync: false
+      - key: OWNER_EMAIL
+        sync: false
+      - key: FROM_NAME
+        sync: false
+      - key: BUSINESS_NAME
+        sync: false
+
+      # Safe to commit: not secret, and the defaults matter.
+      - key: REPLY_WINDOW
+        value: within 24 hours
+      - key: EPHEMERAL_STORAGE
+        value: "true"
+      - key: RATE_LIMIT_PER_IP_HOUR
+        value: "5"
+      - key: RATE_LIMIT_GLOBAL_HOUR
+        value: "50"
+      # Narrow this to the client's real domain as soon as a site points here.
+      # "*" is only acceptable while nothing but curl is calling it.
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: PYTHON_VERSION
+        value: "3.13.1"

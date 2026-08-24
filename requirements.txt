@@ -1,0 +1,11 @@
+# Pinned, not floating. An unpinned requirements file means the build that works
+# today and the build that runs in three months are different software, and the
+# difference shows up as a deploy that suddenly fails for no reason you changed.
+flask==3.1.0
+python-dotenv==1.0.1
+
+# The production server. Flask's built in one is single threaded, prints a
+# warning telling you not to use it in production, and is not built to face the
+# internet. Gunicorn does not run on Windows, so local testing still uses
+# `python enquiry_server.py` and only Render uses this.
+gunicorn==23.0.0
