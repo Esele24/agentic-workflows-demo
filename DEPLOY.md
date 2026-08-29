@@ -8,6 +8,51 @@ which cannot be done from a terminal: Render has no CLI for creating a service,
 and the step that matters asks for a Gmail App Password that should be typed by
 Esele and by nobody else.
 
+**There is now a second route** that needs one click instead of six and retypes
+nothing. See *The API route* below. The six clicks remain the guaranteed path.
+
+---
+
+## The API route (one click, added 2026-08-29)
+
+Render has no CLI, but it does have a REST API, and `deploy_render.py` drives it.
+It reads the five prompted values straight out of `.env`, so the App Password is
+never retyped into a browser field.
+
+```powershell
+# One click: Render, Account Settings, API Keys, Create API Key.
+$env:RENDER_API_KEY = "rnd_..."
+
+cd "CLAUDE\AGENTIC WORKFLOWS DEMO"
+python deploy_render.py            # dry run. Sends nothing. Masks secrets.
+python deploy_render.py --create    # provision it
+```
+
+**Why this matters beyond today.** This service is meant to be sold, and every
+client needs their own deployment with their own `BUSINESS_NAME`, `OWNER_EMAIL`
+and sending account. Six clicks and a hand typed password *per client* is where
+mistakes live. Point the script at a per client env file instead:
+
+```powershell
+python deploy_render.py --env-file clients/best-smilez.env --create
+```
+
+🚨 **The `--create` path has never been run against the live Render API.** There
+was no API key on the machine when it was written, so the request shape is built
+from Render's documented v1 schema and is **unconfirmed**. Every failure prints
+Render's own response body verbatim so a wrong field is legible in one read. If
+it fails, use the six clicks below and tell me what the body said.
+
+✅ **What IS verified:** `python test_deploy_render.py`, **25 checks, all
+passing** — the App Password rules (spaces refused, wrong length refused), every
+required value, payload construction, and that `SMTP_PASSWORD` cannot appear in
+terminal output. Confirmed separately that the real `.env` passes validation and
+that a bad key is reported as a key problem rather than as a code problem.
+
+⚠️ **The script also needs the Render account to have GitHub access to
+`agentic-workflows-demo` already.** If that authorization has never been granted,
+the API cannot grant it and the create fails. That is a browser flow, once.
+
 ---
 
 ## Before you start
