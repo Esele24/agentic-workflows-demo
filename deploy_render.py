@@ -228,12 +228,39 @@ def main() -> int:
     ap.add_argument("--owner", default=None, help="workspace name, email or id, if the key sees several")
     args = ap.parse_args()
 
-    token = os.getenv("RENDER_API_KEY", "").strip()
+    # ⚠️ Strip surrounding quotes, not just whitespace. In cmd.exe
+    # `set KEY="rnd_abc"` stores the quotes AS PART OF THE VALUE, so the key
+    # travels to Render as "rnd_abc" with the quote characters attached and comes
+    # back 401. That reads as a bad key and sends you to regenerate a key that was
+    # fine. Same family as the trailing newline that broke the ai-lab BACKEND_URL.
+    token = os.getenv("RENDER_API_KEY", "").strip().strip('"').strip("'").strip()
     if not token:
         print(
-            "RENDER_API_KEY is not set.\n\n"
-            "  Render dashboard, Account Settings, API Keys, Create API Key.\n"
-            '  $env:RENDER_API_KEY = "rnd_..."\n',
+            "RENDER_API_KEY is not set in THIS terminal.\n\n"
+            "Check which shell you are in. The prompt tells you:\n"
+            "  PS C:\\...>   PowerShell\n"
+            "  C:\\...>      cmd, and the syntax below is different\n\n"
+            "Get the key: Render dashboard, Account Settings, API Keys, Create API Key.\n"
+            "Copy it immediately, Render shows it once.\n\n"
+            "PowerShell:\n"
+            '  $env:RENDER_API_KEY = "rnd_yourkey"\n\n'
+            "cmd:\n"
+            '  set "RENDER_API_KEY=rnd_yourkey"\n\n'
+            "In cmd, keep the quotes around the WHOLE assignment as shown. Writing\n"
+            '  set RENDER_API_KEY="rnd_yourkey"\n'
+            "stores the quote characters inside the value and Render answers 401.\n\n"
+            "Either way the variable lives only in that terminal window. A new\n"
+            "terminal, or a restarted VS Code, means setting it again.\n",
+            file=sys.stderr,
+        )
+        return 2
+
+    if not token.startswith("rnd_"):
+        print(
+            f"RENDER_API_KEY is set but does not look like a Render key: it starts "
+            f"with {token[:4]!r} and Render keys start with 'rnd_'.\n"
+            "Most likely the shell kept some punctuation from the assignment. "
+            "Re-set it and check the syntax note above.",
             file=sys.stderr,
         )
         return 2
