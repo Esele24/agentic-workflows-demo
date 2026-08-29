@@ -71,10 +71,26 @@ REGION = "frankfurt"  # closest of Render's free regions to Nigeria
 PLAN = "free"
 
 # Prompted by the blueprint, so they must come from the env file here.
-SECRET_KEYS = ("SMTP_USER", "SMTP_PASSWORD", "OWNER_EMAIL", "FROM_NAME", "BUSINESS_NAME")
+#
+# ⚠️ SMTP_USER AND SMTP_PASSWORD ARE DELIBERATELY ABSENT, and this is a change
+# from the first version. Render's free tier blocks outbound ports 25, 465 and
+# 587, so the SMTP transport cannot work there at all: it hangs until gunicorn
+# kills the worker. Shipping a Gmail App Password to a host that is physically
+# unable to use it is exposure with no upside, so it is not sent.
+REQUIRED_KEYS = (
+    "BREVO_API_KEY",
+    "BREVO_SENDER_EMAIL",
+    "OWNER_EMAIL",
+    "FROM_NAME",
+    "BUSINESS_NAME",
+)
 
 # Not secret, and the defaults matter. Same values as render.yaml.
 PUBLIC_ENV = {
+    # Pinned rather than left to the automatic choice. The auto rule picks Brevo
+    # whenever a key is present, but on this host being explicit means a missing
+    # key fails loudly instead of silently falling back to a transport that hangs.
+    "EMAIL_TRANSPORT": "brevo",
     "REPLY_WINDOW": "within 24 hours",
     "EPHEMERAL_STORAGE": "true",
     "RATE_LIMIT_PER_IP_HOUR": "5",
@@ -95,9 +111,9 @@ def mask(key: str, value: str) -> str:
     value here whose leak costs the sending account, so it is masked entirely
     rather than partially.
     """
-    if key == "SMTP_PASSWORD":
+    if key in ("SMTP_PASSWORD", "BREVO_API_KEY"):
         return f"<{len(value)} chars, hidden>"
-    if key in ("SMTP_USER", "OWNER_EMAIL") and "@" in value:
+    if key in ("SMTP_USER", "OWNER_EMAIL", "BREVO_SENDER_EMAIL") and "@" in value:
         local, _, domain = value.partition("@")
         return f"{local[:2]}***@{domain}"
     return value
@@ -143,38 +159,37 @@ def load_env(env_file: Path) -> dict[str, str]:
         raise DeployError(f"No env file at {env_file}")
 
     values = {k: (v or "").strip() for k, v in dotenv_values(env_file).items()}
-    resolved = {k: values.get(k, "") for k in SECRET_KEYS}
+    resolved = {k: values.get(k, "") for k in REQUIRED_KEYS}
+
+    # BREVO_SENDER_EMAIL falls back to SMTP_USER, matching send_email.py, so an
+    # env file written before Brevo existed still deploys.
+    if not resolved["BREVO_SENDER_EMAIL"]:
+        resolved["BREVO_SENDER_EMAIL"] = values.get("SMTP_USER", "")
 
     missing = [k for k, v in resolved.items() if not v]
     if missing:
         raise DeployError(
-            f"{env_file.name} is missing: {', '.join(missing)}.\n"
-            "All five are prompted by the blueprint, so all five are required here."
+            f"{env_file.name} is missing: {', '.join(missing)}.\n\n"
+            "BREVO_API_KEY comes from Brevo, SMTP & API, API Keys.\n"
+            "BREVO_SENDER_EMAIL must be an address you VERIFIED in Brevo under "
+            "Senders, Domains & Dedicated IPs."
         )
 
-    # The single most common setup mistake, and it fails at SMTP login with a
-    # message that does not mention spaces. Google displays the App Password in
-    # four groups of four purely for readability; the password is 16 characters.
-    pw = resolved["SMTP_PASSWORD"]
-    if " " in pw:
+    if not resolved["BREVO_API_KEY"].startswith("xkeysib-"):
         raise DeployError(
-            "SMTP_PASSWORD contains spaces. Google shows the App Password as "
-            "four groups of four for readability, but the password itself is 16 "
-            "characters. Remove the spaces."
+            "BREVO_API_KEY does not look like a Brevo v3 API key: those start "
+            "with 'xkeysib-'. An SMTP key from the same page will not work "
+            "against the HTTP API."
         )
-    if len(pw) != 16:
-        raise DeployError(
-            f"SMTP_PASSWORD is {len(pw)} characters, expected 16. That is an "
-            "account password or a truncated paste, not a Gmail App Password."
-        )
+
+    for key in ("OWNER_EMAIL", "BREVO_SENDER_EMAIL"):
+        if "@" not in resolved[key]:
+            raise DeployError(f"{key} is not an email address.")
 
     # OWNER_EMAIL is where the durable record of every enquiry lands, because
     # Render's filesystem is ephemeral and the CSV does not survive a restart.
     # Deploying without it is the one combination that loses enquiries with no
     # trace, which is why enquiry_server.py warns about it at import time.
-    if "@" not in resolved["OWNER_EMAIL"]:
-        raise DeployError("OWNER_EMAIL is not an email address.")
-
     return resolved
 
 

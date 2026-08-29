@@ -35,9 +35,16 @@ services:
 
     envVars:
       # Prompted at create time. Never stored in git.
-      - key: SMTP_USER
+      #
+      # 🔴 SMTP_USER AND SMTP_PASSWORD ARE GONE ON PURPOSE. Render blocked
+      # outbound ports 25, 465 and 587 on FREE web services in September 2025,
+      # so the SMTP transport cannot work here: it does not error, it HANGS
+      # until gunicorn kills the worker, while /health goes on reporting a
+      # perfectly healthy service. Sending a Gmail App Password to a host that
+      # is physically unable to use it is exposure with no upside.
+      - key: BREVO_API_KEY          # Brevo, SMTP & API, API Keys. Starts xkeysib-
         sync: false
-      - key: SMTP_PASSWORD          # Gmail App Password, 16 chars, NO spaces
+      - key: BREVO_SENDER_EMAIL     # an address VERIFIED in the Brevo dashboard
         sync: false
       - key: OWNER_EMAIL
         sync: false
@@ -47,6 +54,13 @@ services:
         sync: false
 
       # Safe to commit: not secret, and the defaults matter.
+      #
+      # Pinned rather than left to send_email.py's automatic choice. The auto
+      # rule picks Brevo whenever a key is present, but being explicit here
+      # means a missing key fails loudly instead of silently falling back to a
+      # transport that hangs on this host.
+      - key: EMAIL_TRANSPORT
+        value: brevo
       - key: REPLY_WINDOW
         value: within 24 hours
       - key: EPHEMERAL_STORAGE

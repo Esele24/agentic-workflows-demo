@@ -124,6 +124,117 @@ routing is the product.
 
 ---
 
+## 🔴 THE BLOCKER: Render's free tier blocks SMTP. Email cannot send there.
+
+**Measured 2026-08-29 on the live deployment**, not read in a doc first:
+`GET /health` returned 200 in **0.9 s** with every value set, and
+`POST /enquiry` **never returned** and was killed by gunicorn's 60 s timeout.
+
+**Cause:** Render blocked outbound traffic to SMTP ports **25, 465 and 587** on
+**free** web services in September 2025. `tools/send_email.py` connects to
+`smtp.gmail.com:587`, so the connection hangs until something kills it.
+Render's own changelog:
+https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports
+
+⚠️ **Nothing in the code is wrong, and this is invisible to every check that was
+run before deploying.** The 26 local checks stub `send_email`, so they pass. The
+`/health` endpoint reports what is CONFIGURED, and every value really is set, so
+it reports a healthy service. **A green health check on a service whose entire
+purpose is sending email is exactly the "metric a broken output can satisfy"
+lesson again** — the only thing that caught this was sending a real enquiry and
+watching nothing arrive.
+
+### The three ways out
+
+| Option | Cost | Code change |
+|---|---|---|
+| **HTTP email API** (Resend, Brevo, SendGrid, Mailgun) | free tiers exist | replace the body of `send_email` |
+| **Paid Render instance** | ~$7/month | none |
+| **Another host** (Railway, Fly) | ~$5/month or free | none, but redo the deploy |
+
+🔑 **The HTTP API route is the better answer even if the money were free**, and
+for three reasons that have nothing to do with Render:
+1. These APIs send over **HTTPS on 443**, which no host blocks.
+2. **It removes the open relay risk at the root.** The worst case in this
+   codebase was always "a stranger loops the endpoint and Google suspends the
+   account that sends everything." A provider key is revocable and rate limited
+   by the provider; his personal Gmail is neither.
+3. **Sending client mail from `okogboesele@gmail.com` does not scale and does not
+   look professional.** Gmail caps around 500 a day across every client.
+
+`send_email` is the seam: keep the signature, replace the body. Everything above
+it — the reply-to routing, the rate limiter, the honeypot, the 26 checks — is
+unaffected.
+
+### ✅ Chosen 2026-08-29: the HTTP API. Brevo. Already built.
+
+`tools/send_email.py` now has **two transports behind one unchanged
+`send_email()` signature**, so nothing that calls it had to change:
+
+| Transport | How | Where it works |
+|---|---|---|
+| `smtp` | `smtp.gmail.com:587` | locally, and on paid hosts |
+| `brevo` | `POST https://api.brevo.com/v3/smtp/email` on 443 | everywhere, including Render free |
+
+**Which one runs:** `EMAIL_TRANSPORT` if set, otherwise Brevo whenever
+`BREVO_API_KEY` exists. ⚠️ That default leans to Brevo deliberately. On a host
+that blocks SMTP, defaulting the other way means **hanging**, and a hang is far
+harder to diagnose than a missing key.
+
+**Why Brevo and not Resend.** Resend's free tier only sends from
+`onboarding@resend.dev` **to the address you signed up with** until you verify a
+domain. For a tool whose whole job is emailing customers, that is unusable.
+Brevo is 300 a day free and will verify a single sender address.
+
+#### Setting it up
+
+1. Sign up at brevo.com. No card.
+2. **Senders, Domains & Dedicated IPs → Senders → Add a sender.** Use his Gmail
+   for now. Brevo emails a confirmation code to that address.
+3. **SMTP & API → API Keys → Generate.** ⚠️ Two different keys live on that
+   page. You want the **v3 API key, which starts `xkeysib-`**. The SMTP key does
+   not work against the HTTP API, and `deploy_render.py` refuses it by prefix.
+4. Add to `.env`:
+   ```
+   BREVO_API_KEY=xkeysib-...
+   BREVO_SENDER_EMAIL=okogboesele@gmail.com
+   ```
+5. Test locally before touching Render:
+   ```powershell
+   python tools/send_email.py --to okogboesele@gmail.com --subject "Brevo test" --text "Hello"
+   ```
+   It prints the transport it used. If it says `via smtp`, the key is not being
+   read.
+
+#### 🚨 The deliverability caveat, and it is not a code problem
+
+**Brevo cannot authenticate a free webmail domain.** Its own documentation:
+domains such as `@gmail.com` and `@yahoo.com` *"cannot be authenticated"*. Since
+February 2024 Gmail and Yahoo require authentication from bulk senders, so mail
+sent from a gmail.com address is **more likely to land in spam**. It sends. It
+just does not arrive as reliably.
+
+🔑 **The fix is a domain, and it is already on his list for another reason.**
+[business.md](../SECOND%20BRAIN/business.md) records a real domain and mailbox as
+the prerequisite gating the UK/US cold email channel. **One `.com.ng` at ₦2,000
+to ₦6,000 a year unblocks both.** Authenticate it in Brevo, point
+`BREVO_SENDER_EMAIL` at it, and **no code changes.**
+
+⚠️ **Unverified and worth checking on the first real send:** whether Brevo's free
+plan stamps its own branding on transactional emails. If it does, a client's
+customer sees a Brevo logo on a branded acknowledgement, which is not sellable.
+Look at the first email that arrives rather than assuming either way.
+
+#### Updating the service that already exists
+
+The service `enquiry-autoresponder` was created before this change, so it still
+carries the SMTP variables. `deploy_render.py` creates services and will not
+update one whose name is taken. In the Render dashboard, on that service,
+**Environment**: add `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` and
+`EMAIL_TRANSPORT=brevo`, and delete `SMTP_PASSWORD`. Saving redeploys it.
+
+---
+
 ## Two free tier facts that will look like bugs
 
 **It sleeps after about 15 minutes idle.** The first request after that waits 30
